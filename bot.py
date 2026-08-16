@@ -7,27 +7,54 @@ app = Flask(__name__)
 
 TOKEN = os.environ["BOT_TOKEN"]
 
-API = f"https://api.telegram.org/bot{TOKEN}"
+TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
+BACKEND = "https://lukirby-backend.onrender.com"
 
 
 def telegram(method, data=None):
     try:
         response = requests.post(
-            f"{API}/{method}",
+            f"{TELEGRAM_API}/{method}",
             json=data or {},
-            timeout=8
+            timeout=10
         )
 
         result = response.json()
 
         if not result.get("ok"):
-            print(f"Telegram {method}: {result}")
+            print(f"[Telegram {method}] {result}")
 
         return result
 
     except Exception as e:
-        print(f"Telegram {method} error: {e}")
+        print(f"[Telegram {method}] error: {e}")
         return None
+
+
+def backend(method, path, data=None):
+    try:
+        response = requests.request(
+            method,
+            f"{BACKEND}{path}",
+            json=data,
+            timeout=10
+        )
+
+        try:
+            return response.json()
+        except Exception:
+            return {
+                "ok": False,
+                "error": f"Backend returned HTTP {response.status_code}"
+            }
+
+    except Exception as e:
+        print(f"[Backend {method} {path}] error: {e}")
+
+        return {
+            "ok": False,
+            "error": str(e)
+        }
 
 
 def main_keyboard():
@@ -113,11 +140,35 @@ def answer_callback(callback_id):
     )
 
 
+def get_user(chat_id):
+    return backend(
+        "POST",
+        "/api/users",
+        {
+            "user_id": str(chat_id)
+        }
+    )
+
+
+def get_devices(chat_id):
+    return backend(
+        "GET",
+        f"/api/devices/{chat_id}"
+    )
+
+
 def handle_message(message):
     chat_id = message["chat"]["id"]
     text = message.get("text", "")
 
+    # Регистрируем пользователя в backend
+    user = get_user(chat_id)
+
+    if not user.get("ok"):
+        print("Failed to create/get user:", user)
+
     if text == "/start":
+
         send_message(
             chat_id,
             (
@@ -130,9 +181,10 @@ def handle_message(message):
 
 
 def handle_callback(callback):
+
     callback_id = callback["id"]
 
-    # Сначала убираем загрузку на кнопке.
+    # Telegram callback должен подтверждаться сразу
     answer_callback(callback_id)
 
     message = callback.get("message")
@@ -144,6 +196,10 @@ def handle_callback(callback):
     message_id = message["message_id"]
 
     data = callback.get("data")
+
+    # --------------------------------
+    # BUY VIP
+    # --------------------------------
 
     if data == "buy_vip":
 
@@ -181,36 +237,124 @@ def handle_callback(callback):
             ]
         }
 
+    # --------------------------------
+    # FREE
+    # --------------------------------
+
     elif data == "free":
+
+        user = get_user(chat_id)
+
+        plan = user.get("plan", "free")
 
         text = (
             "🆓 <b>LukirbyVPN Free</b>\n\n"
-            "Бесплатная подписка.\n\n"
-            "Серверов будет меньше, чем в VIP."
+            "Тариф: <b>Free</b>\n"
+            "Устройств: <b>1</b>\n\n"
+            "Бесплатная подписка."
         )
 
+        if plan == "vip":
+            text = (
+                "⭐ <b>У вас уже VIP</b>\n\n"
+                "Ваш текущий тариф: <b>VIP</b>\n"
+                "Лимит устройств: <b>5</b>"
+            )
+
         keyboard = back_keyboard()
+
+    # --------------------------------
+    # SUBSCRIPTION
+    # --------------------------------
 
     elif data == "subscription":
 
-        text = (
-            "👤 <b>Моя подписка</b>\n\n"
-            "У вас пока нет активной подписки."
-        )
+        user = get_user(chat_id)
+
+        if not user.get("ok"):
+            text = (
+                "❌ <b>Ошибка</b>\n\n"
+                "Не удалось получить данные подписки."
+            )
+        else:
+
+            plan = user.get("plan", "free")
+
+            if plan == "vip":
+                text = (
+                    "⭐ <b>Моя подписка</b>\n\n"
+                    "Тариф: <b>VIP</b>\n"
+                    "Лимит устройств: <b>5</b>\n\n"
+                    "Спасибо за поддержку LukirbyVPN ❤️"
+                )
+            else:
+                text = (
+                    "🆓 <b>Моя подписка</b>\n\n"
+                    "Тариф: <b>Free</b>\n"
+                    "Лимит устройств: <b>1</b>\n\n"
+                    "Хотите больше возможностей? "
+                    "Оформите VIP ⭐"
+                )
 
         keyboard = back_keyboard()
+
+    # --------------------------------
+    # DEVICES
+    # --------------------------------
 
     elif data == "devices":
 
-        text = (
-            "📱 <b>Устройства</b>\n\n"
-            "Активные устройства: 0\n"
-            "Лимит: 0\n\n"
-            "После покупки подписки "
-            "здесь появится управление устройствами."
-        )
+        user = get_user(chat_id)
+        devices = get_devices(chat_id)
+
+        plan = user.get("plan", "free")
+
+        limit = 5 if plan == "vip" else 1
+
+        if not devices.get("ok"):
+
+            text = (
+                "❌ <b>Ошибка</b>\n\n"
+                "Не удалось получить список устройств."
+            )
+
+        else:
+
+            device_list = devices.get("devices", [])
+
+            if device_list:
+
+                lines = []
+
+                for i, device in enumerate(device_list, 1):
+
+                    name = device.get(
+                        "name",
+                        "Неизвестное устройство"
+                    )
+
+                    lines.append(
+                        f"{i}. 📱 {name}"
+                    )
+
+                devices_text = "\n".join(lines)
+
+            else:
+
+                devices_text = "Нет активных устройств."
+
+            text = (
+                "📱 <b>Устройства</b>\n\n"
+                f"{devices_text}\n\n"
+                f"Использовано: <b>{len(device_list)}/{limit}</b>\n"
+                f"Тариф: <b>{plan.upper()}</b>"
+            )
 
         keyboard = back_keyboard()
+
+    # --------------------------------
+    # HELP
+    # --------------------------------
 
     elif data == "help":
 
@@ -223,6 +367,10 @@ def handle_callback(callback):
 
         keyboard = back_keyboard()
 
+    # --------------------------------
+    # BACK
+    # --------------------------------
+
     elif data == "back":
 
         text = (
@@ -231,6 +379,10 @@ def handle_callback(callback):
         )
 
         keyboard = main_keyboard()
+
+    # --------------------------------
+    # VIP PERIOD
+    # --------------------------------
 
     elif data in ("vip_1", "vip_3", "vip_6"):
 
@@ -266,6 +418,7 @@ def index():
 
 @app.post("/webhook")
 def webhook():
+
     update = request.get_json(silent=True)
 
     if not update:
@@ -286,9 +439,15 @@ def webhook():
 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
+
+    port = int(
+        os.environ.get(
+            "PORT",
+            10000
+        )
+    )
 
     app.run(
         host="0.0.0.0",
         port=port
-    )
+        )
