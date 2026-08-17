@@ -686,7 +686,7 @@ def handle_callback(callback):
             "VIP — навсегда, лимит "
             "устройств: <b>10</b>.\n\n"
             "Оплата пока не подключена. "
-            "тариф выдаётся вручную, пишите"
+            "тариф выдаётся вручную, пишите "
             "в поддержку: <b>@LukirbyVPN</b>, "
             "стоимость - 15⭐"
         )
@@ -713,7 +713,7 @@ def handle_callback(callback):
             text = (
                 "⭐ <b>У вас уже VIP</b>\n\n"
                 "Тариф: <b>VIP</b>\n"
-                "Лимит устройств: <b>5</b>\n\n"
+                "Лимит устройств: <b>10</b>\n\n"
                 "VIP действует навсегда."
             )
 
@@ -779,33 +779,33 @@ def handle_callback(callback):
         )
 
         plan = user.get(
-    "plan",
-    "free"
-)
+            "plan",
+            "free"
+        )
 
-limit = user.get(
-    "device_limit"
-)
+        limit = user.get(
+            "device_limit"
+        )
 
-if limit is None:
+        if limit is None:
 
-    subscription = user.get(
-        "subscription",
-        {}
-    )
+            subscription = user.get(
+                "subscription",
+                {}
+            )
 
-    subscription_plan = subscription.get(
-        "plan",
-        plan
-    )
+            subscription_plan = subscription.get(
+                "plan",
+                plan
+            )
 
-    limit = (
-        999999
-        if subscription_plan == "dev"
-        else 10
-        if subscription_plan == "vip"
-        else 5
-    )
+            limit = (
+                999999
+                if subscription_plan == "dev"
+                else 10
+                if subscription_plan == "vip"
+                else 5
+            )
 
         if not devices.get("ok"):
 
@@ -1317,4 +1317,4 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=port
-                )
+            )
