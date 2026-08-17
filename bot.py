@@ -171,7 +171,8 @@ def encrypt_happ_url(subscription_url):
         # -------------------------------------------------
 
         happ_link = (
-            result.get("url")
+            result.get("encrypted_link")
+            or result.get("url")
             or result.get("link")
             or result.get("subscription")
             or result.get("result")
@@ -1130,4 +1131,4 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=port
-          )
+    )
