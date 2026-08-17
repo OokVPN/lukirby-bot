@@ -18,15 +18,6 @@ BACKEND = os.environ.get(
     "https://lukirby-backend.onrender.com"
 )
 
-# Endpoint Happ Crypto5 / URL encryption.
-#
-# Официальный endpoint из документации Happ:
-# https://www.happ.su/main/dev-docs/crypto-link
-#
-# POST {"url": "..."} -> {"url": "happ://crypt5/..."}
-#
-# Можно переопределить через env, если Happ
-# поменяет адрес API.
 HAPP_CRYPTO_API = os.environ.get(
     "HAPP_CRYPTO_API",
     "https://crypto.happ.su/api-v2.php"
@@ -165,11 +156,6 @@ def encrypt_happ_url(subscription_url):
             result
         )
 
-        # -------------------------------------------------
-        # Поддерживаем несколько распространённых
-        # вариантов ответа API.
-        # -------------------------------------------------
-
         happ_link = (
             result.get("encrypted_link")
             or result.get("url")
@@ -286,15 +272,6 @@ def back_keyboard():
 
 def subscription_keyboard():
 
-    # Саму ссылку теперь не кладём в кнопку:
-    # copy_text у Telegram ограничен 256 символами,
-    # а Crypto5-ссылка обычно в 3+ раза длиннее.
-    #
-    # Вместо этого ссылка идёт прямо в тексте сообщения
-    # внутри <blockquote expandable><code>...</code></blockquote> —
-    # у такого блока нет ограничения длины, он сворачивается
-    # сам, а тап по моноширинному тексту копирует его в буфер.
-
     return {
         "inline_keyboard": [
 
@@ -320,7 +297,7 @@ def subscription_keyboard():
 
 
 # =========================================================
-# HTML ESCAPE (для parse_mode=HTML)
+# HTML ESCAPE
 # =========================================================
 
 def escape_html(text):
@@ -352,11 +329,6 @@ def device_delete_keyboard(devices):
             "Неизвестное устройство"
         )
 
-        # Telegram callback_data имеет
-        # ограничение 1-64 bytes.
-        #
-        # Поэтому ID устройства
-        # отправляем в callback.
         keyboard.append([
             {
                 "text":
@@ -369,7 +341,50 @@ def device_delete_keyboard(devices):
     keyboard.append([
         {
             "text":
-            "◀️ Назад",
+                "◀️ Назад",
+            "callback_data":
+                "devices"
+        }
+    ])
+
+    return {
+        "inline_keyboard":
+            keyboard
+    }
+
+
+# =========================================================
+# DEVICE RESTORE KEYBOARD
+# =========================================================
+
+def device_restore_keyboard(devices):
+
+    keyboard = []
+
+    for device in devices:
+
+        device_id = device.get(
+            "device_id"
+        )
+
+        name = device.get(
+            "name",
+            "Неизвестное устройство"
+        )
+
+        keyboard.append([
+            {
+                "text":
+                    f"♻️ {name}",
+                "callback_data":
+                    f"restore_device:{device_id}"
+            }
+        ])
+
+    keyboard.append([
+        {
+            "text":
+                "◀️ Назад",
             "callback_data":
                 "devices"
         }
@@ -500,9 +515,7 @@ def get_devices(chat_id):
 # GET SUBSCRIPTION
 # =========================================================
 
-def get_subscription(
-    token
-):
+def get_subscription(token):
 
     return backend(
         "GET",
@@ -515,11 +528,6 @@ def get_subscription(
 # =========================================================
 
 def get_happ_subscription(chat_id):
-
-    # -----------------------------------------------------
-    # Backend /api/users уже возвращает
-    # постоянный token пользователя.
-    # -----------------------------------------------------
 
     user = get_user(chat_id)
 
@@ -555,13 +563,6 @@ def get_happ_subscription(chat_id):
                 "Subscription token not found"
         }
 
-    # -----------------------------------------------------
-    # ОБЫЧНАЯ ССЫЛКА ПОДПИСКИ
-    #
-    # Здесь укажи свой реальный URL Worker/Netlify,
-    # который принимает ?token=...
-    # -----------------------------------------------------
-
     subscription_base = os.environ.get(
         "SUBSCRIPTION_URL",
         "https://lukirby-vpn.vercel.app/api/subscription"
@@ -586,10 +587,6 @@ def get_happ_subscription(chat_id):
         f"{separator}"
         f"token={token}"
     )
-
-    # -----------------------------------------------------
-    # CRYPTO5
-    # -----------------------------------------------------
 
     encrypted = encrypt_happ_url(
         subscription_url
@@ -626,8 +623,6 @@ def handle_message(message):
         ""
     )
 
-    # Всегда регистрируем /
-    # получаем существующего пользователя.
     user = get_user(chat_id)
 
     if not user.get("ok"):
@@ -660,7 +655,6 @@ def handle_callback(callback):
 
     callback_id = callback["id"]
 
-    # Telegram callback подтверждаем сразу.
     answer_callback(
         callback_id
     )
@@ -682,7 +676,7 @@ def handle_callback(callback):
     )
 
     # =====================================================
-    # VIP INFO (без оплаты — Stars-оплата не реализована)
+    # VIP INFO
     # =====================================================
 
     if data == "vip_info":
@@ -812,13 +806,6 @@ def handle_callback(callback):
                 []
             )
 
-            # -------------------------------------------------
-            # Показываем все устройства,
-            # включая removed.
-            #
-            # Но active считаем отдельно.
-            # -------------------------------------------------
-
             active_devices = [
                 d
                 for d in device_list
@@ -826,33 +813,30 @@ def handle_callback(callback):
                 == "active"
             ]
 
-            if device_list:
+            removed_devices = [
+                d
+                for d in device_list
+                if d.get("status")
+                == "removed"
+            ]
+
+            if active_devices:
 
                 lines = []
 
-                for device in device_list:
+                for device in active_devices:
 
                     name = device.get(
                         "name",
                         "Неизвестное устройство"
                     )
 
-                    status = device.get(
-                        "status",
-                        "active"
+                    lines.append(
+                        f"📱 {name}"
                     )
-
-                    if status == "active":
-
-                        lines.append(
-                            f"📱 {name}"
-                        )
 
                 devices_text = (
                     "\n".join(lines)
-                    if lines
-                    else
-                    "Нет активных устройств."
                 )
 
             else:
@@ -870,27 +854,41 @@ def handle_callback(callback):
                 f"<b>{plan.upper()}</b>"
             )
 
-            keyboard = {
-                "inline_keyboard": [
+            keyboard_rows = [
 
-                    [
-                        {
-                            "text":
-                                "❌ Удалить устройство",
-                            "callback_data":
-                                "delete_menu"
-                        }
-                    ],
-
-                    [
-                        {
-                            "text":
-                                "◀️ Назад",
-                            "callback_data":
-                                "back"
-                        }
-                    ]
+                [
+                    {
+                        "text":
+                            "❌ Удалить устройство",
+                        "callback_data":
+                            "delete_menu"
+                    }
                 ]
+            ]
+
+            if removed_devices:
+
+                keyboard_rows.append([
+                    {
+                        "text":
+                            "♻️ Восстановить устройство",
+                        "callback_data":
+                            "restore_menu"
+                    }
+                ])
+
+            keyboard_rows.append([
+                {
+                    "text":
+                        "◀️ Назад",
+                    "callback_data":
+                        "back"
+                }
+            ])
+
+            keyboard = {
+                "inline_keyboard":
+                    keyboard_rows
             }
 
     # =====================================================
@@ -942,11 +940,12 @@ def handle_callback(callback):
                 text = (
                     "❌ <b>Выберите какое "
                     "устройство удалить:</b>\n\n"
-                    "После удаления оно получит "
-                    "ограниченный сервер.\n\n"
-                    "При повторном подключении "
-                    "с того же HWID устройство "
-                    "снова станет активным."
+                    "После удаления оно "
+                    "перестанет считаться "
+                    "активным.\n\n"
+                    "При необходимости его "
+                    "можно восстановить "
+                    "через меню устройств."
                 )
 
                 keyboard = device_delete_keyboard(
@@ -988,9 +987,178 @@ def handle_callback(callback):
                 "✅ <b>Устройство удалено</b>\n\n"
                 "Оно больше не считается "
                 "активным.\n\n"
-                "При повторном подключении "
-                "с того же HWID оно снова "
-                "станет активным."
+                "Восстановить его можно "
+                "через меню устройств."
+            )
+
+            keyboard = {
+                "inline_keyboard": [
+
+                    [
+                        {
+                            "text":
+                                "📱 Устройства",
+                            "callback_data":
+                                "devices"
+                        }
+                    ],
+
+                    [
+                        {
+                            "text":
+                                "◀️ Назад",
+                            "callback_data":
+                                "back"
+                        }
+                    ]
+                ]
+            }
+
+    # =====================================================
+    # RESTORE MENU
+    # =====================================================
+
+    elif data == "restore_menu":
+
+        devices = get_devices(
+            chat_id
+        )
+
+        if not devices.get("ok"):
+
+            text = (
+                "❌ <b>Ошибка</b>\n\n"
+                "Не удалось получить "
+                "список устройств."
+            )
+
+            keyboard = back_keyboard()
+
+        else:
+
+            device_list = devices.get(
+                "devices",
+                []
+            )
+
+            removed_devices = [
+                d
+                for d in device_list
+                if d.get("status")
+                == "removed"
+            ]
+
+            if not removed_devices:
+
+                text = (
+                    "♻️ <b>Восстановление "
+                    "устройства</b>\n\n"
+                    "Нет удалённых устройств "
+                    "для восстановления."
+                )
+
+                keyboard = back_keyboard()
+
+            else:
+
+                text = (
+                    "♻️ <b>Восстановление "
+                    "устройства</b>\n\n"
+                    "Выберите устройство, "
+                    "которое хотите восстановить."
+                )
+
+                keyboard = device_restore_keyboard(
+                    removed_devices
+                )
+
+    # =====================================================
+    # RESTORE SPECIFIC DEVICE
+    # =====================================================
+
+    elif data.startswith(
+        "restore_device:"
+    ):
+
+        device_id = data.split(
+            ":",
+            1
+        )[1]
+
+        result = backend(
+            "POST",
+            f"/api/devices/"
+            f"{chat_id}/"
+            f"{device_id}/restore"
+        )
+
+        if not result.get("ok"):
+
+            error = result.get(
+                "error",
+                "Не удалось восстановить устройство."
+            )
+
+            if error == "device limit reached":
+
+                text = (
+                    "❌ <b>Лимит устройств "
+                    "достигнут</b>\n\n"
+                    f"Активных устройств: "
+                    f"<b>{result.get('active_devices', '?')}"
+                    f"/{result.get('device_limit', '?')}</b>\n\n"
+                    "Освободите место или "
+                    "используйте тариф с большим "
+                    "лимитом устройств."
+                )
+
+            else:
+
+                text = (
+                    "❌ <b>Ошибка</b>\n\n"
+                    f"{error}"
+                )
+
+            keyboard = {
+                "inline_keyboard": [
+
+                    [
+                        {
+                            "text":
+                                "♻️ Восстановление",
+                            "callback_data":
+                                "restore_menu"
+                        }
+                    ],
+
+                    [
+                        {
+                            "text":
+                                "📱 Устройства",
+                            "callback_data":
+                                "devices"
+                        }
+                    ],
+
+                    [
+                        {
+                            "text":
+                                "◀️ Назад",
+                            "callback_data":
+                                "back"
+                        }
+                    ]
+                ]
+            }
+
+        else:
+
+            text = (
+                "♻️ <b>Устройство восстановлено</b>\n\n"
+                "Оно снова считается активным.\n\n"
+                f"Активных устройств: "
+                f"<b>{result.get('active_devices', '?')}"
+                f"/{result.get('device_limit', '?')}</b>"
             )
 
             keyboard = {
@@ -1131,4 +1299,4 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=port
-    )
+                )
