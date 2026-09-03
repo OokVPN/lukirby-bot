@@ -638,7 +638,7 @@ def handle_message(message):
             chat_id,
 
             (
-                "🔥 <b>LukirbyVPN</b>\n\n"
+                "🔥 <b>OokVPN</b>\n\n"
                 "Добро пожаловать!\n\n"
                 "Выберите нужный раздел:"
             ),
@@ -682,13 +682,10 @@ def handle_callback(callback):
     if data == "vip_info":
 
         text = (
-            "⭐ <b>LukirbyVPN VIP</b>\n\n"
+            "⭐ <b>OokVPN VIP</b>\n\n"
             "VIP — навсегда, лимит "
             "устройств: <b>10</b>.\n\n"
             "Оплата пока не подключена. "
-            "тариф выдаётся вручную, пишите "
-            "в поддержку: <b>@LukirbyVPN</b>, "
-            "стоимость - 15⭐"
         )
 
         keyboard = back_keyboard()
@@ -720,7 +717,7 @@ def handle_callback(callback):
         else:
 
             text = (
-                "🆓 <b>LukirbyVPN Free</b>\n\n"
+                "🆓 <b>OokVPN Free</b>\n\n"
                 "Тариф: <b>Free</b>\n"
                 "Устройств: <b>5</b>\n\n"
                 "Бесплатная подписка."
@@ -1215,7 +1212,7 @@ def handle_callback(callback):
             "или устройствами — "
             "обратитесь в поддержку.\n\n"
             "👤 Поддержка: "
-            "<b>@LukirbyVPN</b>"
+            "<b>@OokVPNHelp</b>"
         )
 
         keyboard = back_keyboard()
@@ -1227,7 +1224,7 @@ def handle_callback(callback):
     elif data == "back":
 
         text = (
-            "🔥 <b>LukirbyVPN</b>\n\n"
+            "🔥 <b>OokVPN</b>\n\n"
             "Выберите нужный раздел:"
         )
 
@@ -1257,7 +1254,7 @@ def handle_callback(callback):
 def index():
 
     return (
-        "LukirbyVPN Bot is alive 🔥",
+        "Ook Bot is alive 🔥",
         200
     )
 
