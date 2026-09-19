@@ -18,11 +18,6 @@ BACKEND = os.environ.get(
     "https://lukirby-backend.onrender.com"
 )
 
-HAPP_CRYPTO_API = os.environ.get(
-    "HAPP_CRYPTO_API",
-    "https://crypto.happ.su/api-v2.php"
-)
-
 
 # =========================================================
 # TELEGRAM API
@@ -92,103 +87,6 @@ def backend(method, path, data=None):
         print(
             f"[Backend {method} {path}] "
             f"error: {e}"
-        )
-
-        return {
-            "ok": False,
-            "error": str(e)
-        }
-
-
-# =========================================================
-# HAPP CRYPTO5
-# =========================================================
-
-def encrypt_happ_url(subscription_url):
-
-    if not HAPP_CRYPTO_API:
-
-        return {
-            "ok": False,
-            "error":
-                "HAPP_CRYPTO_API is not configured"
-        }
-
-    try:
-
-        response = requests.post(
-            HAPP_CRYPTO_API,
-            json={
-                "url": subscription_url
-            },
-            timeout=20
-        )
-
-        try:
-
-            result = response.json()
-
-        except Exception:
-
-            return {
-                "ok": False,
-                "error":
-                    "Happ API returned invalid JSON"
-            }
-
-        if not response.ok:
-
-            print(
-                "[Happ] HTTP error:",
-                response.status_code,
-                result
-            )
-
-            return {
-                "ok": False,
-                "error":
-                    f"Happ API HTTP "
-                    f"{response.status_code}"
-            }
-
-        print(
-            "[Happ] encryption response:",
-            result
-        )
-
-        happ_link = (
-            result.get("encrypted_link")
-            or result.get("url")
-            or result.get("link")
-            or result.get("subscription")
-            or result.get("result")
-        )
-
-        if isinstance(happ_link, dict):
-
-            happ_link = (
-                happ_link.get("url")
-                or happ_link.get("link")
-            )
-
-        if not happ_link:
-
-            return {
-                "ok": False,
-                "error":
-                    "Happ API did not return encrypted URL"
-            }
-
-        return {
-            "ok": True,
-            "url": str(happ_link)
-        }
-
-    except Exception as e:
-
-        print(
-            "[Happ] encryption error:",
-            e
         )
 
         return {
@@ -270,10 +168,24 @@ def back_keyboard():
 # SUBSCRIPTION KEYBOARD
 # =========================================================
 
-def subscription_keyboard():
+def subscription_keyboard(
+    subscription_url
+):
 
     return {
         "inline_keyboard": [
+
+            [
+                {
+                    "text":
+                        "📋 Скопировать подписку",
+
+                    "copy_text": {
+                        "text":
+                            subscription_url
+                    }
+                }
+            ],
 
             [
                 {
@@ -524,12 +436,16 @@ def get_subscription(token):
 
 
 # =========================================================
-# BUILD / GET HAPP SUBSCRIPTION
+# BUILD SUBSCRIPTION URL
 # =========================================================
 
-def get_happ_subscription(chat_id):
+def get_subscription_url(
+    chat_id
+):
 
-    user = get_user(chat_id)
+    user = get_user(
+        chat_id
+    )
 
     if not user.get("ok"):
 
@@ -588,14 +504,6 @@ def get_happ_subscription(chat_id):
         f"token={token}"
     )
 
-    encrypted = encrypt_happ_url(
-        subscription_url
-    )
-
-    if not encrypted.get("ok"):
-
-        return encrypted
-
     return {
         "ok": True,
 
@@ -603,10 +511,7 @@ def get_happ_subscription(chat_id):
             token,
 
         "subscription_url":
-            subscription_url,
-
-        "happ_url":
-            encrypted["url"]
+            subscription_url
     }
 
 
@@ -623,7 +528,9 @@ def handle_message(message):
         ""
     )
 
-    user = get_user(chat_id)
+    user = get_user(
+        chat_id
+    )
 
     if not user.get("ok"):
 
@@ -731,7 +638,7 @@ def handle_callback(callback):
 
     elif data == "subscription":
 
-        result = get_happ_subscription(
+        result = get_subscription_url(
             chat_id
         )
 
@@ -746,20 +653,16 @@ def handle_callback(callback):
 
         else:
 
-            happ_link = escape_html(
-                result["happ_url"]
-            )
-
             text = (
                 "🔐 <b>Ваша подписка</b>\n\n"
-                "Нажми на ссылку ниже — "
-                "она скопируется в буфер:\n\n"
-                "<blockquote expandable>"
-                f"<code>{happ_link}</code>"
-                "</blockquote>"
+                "Нажмите кнопку ниже, "
+                "чтобы скопировать ссылку "
+                "в буфер обмена."
             )
 
-            keyboard = subscription_keyboard()
+            keyboard = subscription_keyboard(
+                result["subscription_url"]
+            )
 
     # =====================================================
     # DEVICES
@@ -1314,4 +1217,4 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=port
-            )
+    )
