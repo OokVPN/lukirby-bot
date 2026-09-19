@@ -565,7 +565,7 @@ def get_happ_subscription(chat_id):
 
     subscription_base = os.environ.get(
         "SUBSCRIPTION_URL",
-        "https://lukirby-vpn.vercel.app/api/subscription"
+        "https://ook-vpn.vercel.app/sub.txt"
     )
 
     if not subscription_base:
