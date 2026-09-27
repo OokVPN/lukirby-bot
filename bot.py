@@ -5,10 +5,6 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
-# =========================================================
-# CONFIG
-# =========================================================
-
 TOKEN = os.environ["BOT_TOKEN"]
 
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
@@ -18,10 +14,8 @@ BACKEND = os.environ.get(
     "https://lukirby-backend.onrender.com"
 )
 
+MAINTENANCE = True
 
-# =========================================================
-# TELEGRAM API
-# =========================================================
 
 def telegram(method, data=None):
 
@@ -53,10 +47,6 @@ def telegram(method, data=None):
 
         return None
 
-
-# =========================================================
-# BACKEND API
-# =========================================================
 
 def backend(method, path, data=None):
 
@@ -94,10 +84,6 @@ def backend(method, path, data=None):
             "error": str(e)
         }
 
-
-# =========================================================
-# MAIN KEYBOARD
-# =========================================================
 
 def main_keyboard():
 
@@ -145,10 +131,6 @@ def main_keyboard():
     }
 
 
-# =========================================================
-# BACK BUTTON
-# =========================================================
-
 def back_keyboard():
 
     return {
@@ -163,10 +145,6 @@ def back_keyboard():
         ]
     }
 
-
-# =========================================================
-# SUBSCRIPTION KEYBOARD
-# =========================================================
 
 def subscription_keyboard(
     subscription_url
@@ -208,10 +186,6 @@ def subscription_keyboard(
     }
 
 
-# =========================================================
-# HTML ESCAPE
-# =========================================================
-
 def escape_html(text):
 
     return (
@@ -221,10 +195,6 @@ def escape_html(text):
         .replace(">", "&gt;")
     )
 
-
-# =========================================================
-# DEVICE DELETE KEYBOARD
-# =========================================================
 
 def device_delete_keyboard(devices):
 
@@ -265,10 +235,6 @@ def device_delete_keyboard(devices):
     }
 
 
-# =========================================================
-# DEVICE RESTORE KEYBOARD
-# =========================================================
-
 def device_restore_keyboard(devices):
 
     keyboard = []
@@ -308,10 +274,6 @@ def device_restore_keyboard(devices):
     }
 
 
-# =========================================================
-# SEND MESSAGE
-# =========================================================
-
 def send_message(
     chat_id,
     text,
@@ -338,10 +300,6 @@ def send_message(
         data
     )
 
-
-# =========================================================
-# EDIT MESSAGE
-# =========================================================
 
 def edit_message(
     chat_id,
@@ -371,10 +329,6 @@ def edit_message(
     )
 
 
-# =========================================================
-# ANSWER CALLBACK
-# =========================================================
-
 def answer_callback(
     callback_id,
     text=None
@@ -395,10 +349,6 @@ def answer_callback(
     )
 
 
-# =========================================================
-# GET USER
-# =========================================================
-
 def get_user(chat_id):
 
     return backend(
@@ -411,10 +361,6 @@ def get_user(chat_id):
     )
 
 
-# =========================================================
-# GET DEVICES
-# =========================================================
-
 def get_devices(chat_id):
 
     return backend(
@@ -423,10 +369,6 @@ def get_devices(chat_id):
     )
 
 
-# =========================================================
-# GET SUBSCRIPTION
-# =========================================================
-
 def get_subscription(token):
 
     return backend(
@@ -434,10 +376,6 @@ def get_subscription(token):
         f"/api/subscriptions/{token}"
     )
 
-
-# =========================================================
-# BUILD SUBSCRIPTION URL
-# =========================================================
 
 def get_subscription_url(
     chat_id
@@ -515,13 +453,24 @@ def get_subscription_url(
     }
 
 
-# =========================================================
-# /START
-# =========================================================
-
 def handle_message(message):
 
     chat_id = message["chat"]["id"]
+
+    if MAINTENANCE:
+
+        send_message(
+            chat_id,
+            (
+                "🛠 <b>OokVPN временно закрыт</b>\n\n"
+                "Мы делаем масштабную переработку VPN.\n\n"
+                "Текущая подписка продолжает работать "
+                "до выхода новой версии.\n\n"
+                "Следите за новостями в канале."
+            )
+        )
+
+        return
 
     text = message.get(
         "text",
@@ -554,10 +503,6 @@ def handle_message(message):
         )
 
 
-# =========================================================
-# CALLBACK HANDLER
-# =========================================================
-
 def handle_callback(callback):
 
     callback_id = callback["id"]
@@ -582,10 +527,6 @@ def handle_callback(callback):
         ""
     )
 
-    # =====================================================
-    # VIP INFO
-    # =====================================================
-
     if data == "vip_info":
 
         text = (
@@ -596,10 +537,6 @@ def handle_callback(callback):
         )
 
         keyboard = back_keyboard()
-
-    # =====================================================
-    # FREE
-    # =====================================================
 
     elif data == "free":
 
@@ -632,10 +569,6 @@ def handle_callback(callback):
 
         keyboard = back_keyboard()
 
-    # =====================================================
-    # SUBSCRIPTION
-    # =====================================================
-
     elif data == "subscription":
 
         result = get_subscription_url(
@@ -663,10 +596,6 @@ def handle_callback(callback):
             keyboard = subscription_keyboard(
                 result["subscription_url"]
             )
-
-    # =====================================================
-    # DEVICES
-    # =====================================================
 
     elif data == "devices":
 
@@ -809,10 +738,6 @@ def handle_callback(callback):
                     keyboard_rows
             }
 
-    # =====================================================
-    # DELETE MENU
-    # =====================================================
-
     elif data == "delete_menu":
 
         devices = get_devices(
@@ -869,10 +794,6 @@ def handle_callback(callback):
                 keyboard = device_delete_keyboard(
                     active_devices
                 )
-
-    # =====================================================
-    # DELETE SPECIFIC DEVICE
-    # =====================================================
 
     elif data.startswith(
         "delete_device:"
@@ -932,10 +853,6 @@ def handle_callback(callback):
                 ]
             }
 
-    # =====================================================
-    # RESTORE MENU
-    # =====================================================
-
     elif data == "restore_menu":
 
         devices = get_devices(
@@ -989,10 +906,6 @@ def handle_callback(callback):
                 keyboard = device_restore_keyboard(
                     removed_devices
                 )
-
-    # =====================================================
-    # RESTORE SPECIFIC DEVICE
-    # =====================================================
 
     elif data.startswith(
         "restore_device:"
@@ -1102,10 +1015,6 @@ def handle_callback(callback):
                 ]
             }
 
-    # =====================================================
-    # HELP
-    # =====================================================
-
     elif data == "help":
 
         text = (
@@ -1120,10 +1029,6 @@ def handle_callback(callback):
 
         keyboard = back_keyboard()
 
-    # =====================================================
-    # BACK
-    # =====================================================
-
     elif data == "back":
 
         text = (
@@ -1132,10 +1037,6 @@ def handle_callback(callback):
         )
 
         keyboard = main_keyboard()
-
-    # =====================================================
-    # UNKNOWN
-    # =====================================================
 
     else:
 
@@ -1149,10 +1050,6 @@ def handle_callback(callback):
     )
 
 
-# =========================================================
-# WEB
-# =========================================================
-
 @app.get("/")
 def index():
 
@@ -1161,10 +1058,6 @@ def index():
         200
     )
 
-
-# =========================================================
-# WEBHOOK
-# =========================================================
 
 @app.post("/webhook")
 def webhook():
@@ -1178,6 +1071,34 @@ def webhook():
         return "OK", 200
 
     try:
+
+        if MAINTENANCE:
+
+            if "message" in update:
+
+                chat_id = update["message"]["chat"]["id"]
+
+                send_message(
+                    chat_id,
+                    (
+                        "🛠 <b>OokVPN временно закрыт</b>\n\n"
+                        "Мы делаем масштабную переработку VPN.\n\n"
+                        "Текущая подписка продолжает работать "
+                        "до выхода новой версии.\n\n"
+                        "Следите за новостями в канале."
+                    )
+                )
+
+            elif "callback_query" in update:
+
+                callback = update["callback_query"]
+
+                answer_callback(
+                    callback["id"],
+                    "🛠 Бот временно отключён"
+                )
+
+            return "OK", 200
 
         if "message" in update:
 
@@ -1201,10 +1122,6 @@ def webhook():
     return "OK", 200
 
 
-# =========================================================
-# START
-# =========================================================
-
 if __name__ == "__main__":
 
     port = int(
@@ -1217,4 +1134,4 @@ if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=port
-    )
+)
